@@ -14,4 +14,10 @@ export abstract class CustomGameObject extends Phaser.Physics.Arcade.Sprite {
 
     public abstract getGameObject(): Phaser.GameObjects.GameObject;
 
+    public abstract lookAtGameObject(gameObject: Phaser.GameObjects.GameObject): void;
+
+    public abstract lookAtMouse(): void;
+
+    public abstract lookAtPoint(x: number, y: number): void;
+
 }

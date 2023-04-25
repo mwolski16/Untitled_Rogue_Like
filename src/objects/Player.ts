@@ -1,5 +1,6 @@
 import { CustomGameObject } from "../core/Core";
 import { KeyBindings } from "../util/KeyBindings";
+import Bullet from "./Bullet";
 
 export default class Player extends CustomGameObject {
 
@@ -13,6 +14,8 @@ export default class Player extends CustomGameObject {
 
     currentVelocityX: number = 0; 
     currentVelocityY: number = 0;
+
+    bulletsArray: Array<Bullet> = [];
 
     constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
         super(scene, x, y, texture);
@@ -31,6 +34,7 @@ export default class Player extends CustomGameObject {
 
     update(time: number, delta: number): void {
         this.updateMovement();
+        this.updateBullets(time, delta);
     }
 
     destroy(): void {
@@ -53,15 +57,21 @@ export default class Player extends CustomGameObject {
             this.keys.set(key, this.keyboard!.addKey(new Phaser.Input.Keyboard.Key(this.keyboard!, value.charCodeAt(0))));
         });
 
+        this.scene.input.on('pointermove', () => {
+            this.lookAtMouse();
+        });
+
+        this.scene.input.on('pointerdown', () => {
+            console.log("click");
+            this.shoot();
+        });
+       
+
     }
 
     updateMovement() {
         this.areAnyElementsMissing();
         this.movePlayer();
-        this.scene.input.on('pointermove', () => {
-            this.lookAtMouse();
-        });
-       
     }
 
     areAnyElementsMissing(): Error | void {
@@ -101,9 +111,33 @@ export default class Player extends CustomGameObject {
         }
     }
 
-    lookAtMouse() {
+    shoot() {
+        const mouse = this.scene.input.activePointer;
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, mouse.x, mouse.y);;
+        const bullet = new Bullet(this.scene, this.x, this.y, 'bullet', angle, 50);
+        this.bulletsArray.push(bullet);
+        bullet.create();
+    }
+
+    updateBullets(time: number, delta: number) {
+        this.bulletsArray.forEach((bullet) => {
+            bullet.update(time, delta);
+        });
+    }
+
+    public lookAtMouse() {
         const mouse = this.scene.input.activePointer;
         const angle = Phaser.Math.Angle.Between(this.x, this.y, mouse.x, mouse.y);
+        this.setRotation(angle);
+    }
+
+    public lookAtPoint(x: number, y: number): void {
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, x, y);
+        this.setRotation(angle);
+    }
+
+    public lookAtGameObject(gameObject: CustomGameObject): void {
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, gameObject.x, gameObject.y);
         this.setRotation(angle);
     }
 
