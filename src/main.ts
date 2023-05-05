@@ -16,11 +16,6 @@ class MainScene extends Scene {
   create() {
     this.player = new Player(this, 100, 100, '');
     this.player.create();
-  // You can also set additional properties for the sprite, such as scale, rotation, and alpha
-    //this.player.setPosition(100, 100);
-    //this.player.setCollideWorldBounds(true); // Set the sprite to collide with the world bounds
-
-    //set velocity of spirite
 }
   
 

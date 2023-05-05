@@ -1,6 +1,8 @@
 import { CustomGameObject } from "../core/Core";
 import { KeyBindings } from "../util/KeyBindings";
-import Bullet from "./Bullet";
+import Bullet from "./main/Bullet";
+import Weapon from "./main/Weapon";
+import WeaponConfig from "./main/WeaponConfig";
 
 export default class Player extends CustomGameObject {
 
@@ -9,7 +11,9 @@ export default class Player extends CustomGameObject {
     keyBindings = KeyBindings;
     keys!: Map<string, Phaser.Input.Keyboard.Key>;
 
-    ACCELERATION: number = 500; 
+    weapon!: Weapon | null;
+
+    ACCELERATION: number = 2500; 
     DECELERATION: number = 15000; 
 
     currentVelocityX: number = 0; 
@@ -30,10 +34,17 @@ export default class Player extends CustomGameObject {
         this.scene.add.existing(this);
         this.setCollideWorldBounds(true);
         this.initialize();
+        const testWeaponConfig = new WeaponConfig()
+                                .withScene(this.scene)
+                                .withPosition(this.x, this.y)
+                                .withTexture('weapon')
+                                .build();
+        this.weapon = new Weapon(testWeaponConfig);
     }
 
     update(time: number, delta: number): void {
-        this.updateMovement();
+        this.updateMovement(time, delta);
+        this.updateWeapon(time, delta);
         this.updateBullets(time, delta);
     }
 
@@ -58,7 +69,7 @@ export default class Player extends CustomGameObject {
         });
 
         this.scene.input.on('pointermove', () => {
-            this.lookAtMouse();
+            //this.lookAtMouse();
         });
 
         this.scene.input.on('pointerdown', () => {
@@ -69,9 +80,10 @@ export default class Player extends CustomGameObject {
 
     }
 
-    updateMovement() {
+    updateMovement(time: number, delta: number) {
         this.areAnyElementsMissing();
-        this.movePlayer();
+        this.movePlayer(delta);
+        this.lookAtMouse();
     }
 
     areAnyElementsMissing(): Error | void {
@@ -88,41 +100,72 @@ export default class Player extends CustomGameObject {
         }
     }
 
-    movePlayer() {
+    movePlayer(delta: number) {
         const acceleration = this.ACCELERATION;
         const deceleration = this.DECELERATION;
         
-        if (this.keys.get('up')!.isDown) {
-            this.playerBody.setAccelerationY(-acceleration);
-        } else if (this.keys.get('down')!.isDown) {
-            this.playerBody.setAccelerationY(acceleration);
-        } else {
-            this.playerBody.setAccelerationY(0);
-            this.playerBody.setDragY(deceleration); 
+        const velocityX = this.playerBody.velocity.x;
+        const velocityY = this.playerBody.velocity.y;
+        const velocityMax = 1500;
+
+        if (Math.abs(this.playerBody.velocity.x) > velocityMax) {
+            this.playerBody.velocity.x = Math.sign(this.playerBody.velocity.x) * velocityMax;
         }
-    
+
+        if (Math.abs(this.playerBody.velocity.y) > velocityMax) {
+            this.playerBody.velocity.y = Math.sign(this.playerBody.velocity.y) * velocityMax;
+        }
+
         if (this.keys.get('left')!.isDown) {
-            this.playerBody.setAccelerationX(-acceleration);
+            this.currentVelocityX = Math.max(this.currentVelocityX - acceleration * delta / 1000, -velocityMax);
         } else if (this.keys.get('right')!.isDown) {
-            this.playerBody.setAccelerationX(acceleration);
+            this.currentVelocityX = Math.min(this.currentVelocityX + acceleration * delta / 1000, velocityMax);
         } else {
-            this.playerBody.setAccelerationX(0);
-            this.playerBody.setDragX(deceleration); 
+            if (velocityX > 0) {
+                this.currentVelocityX = Math.max(velocityX - deceleration * delta / 1000, 0);
+            } else if (velocityX < 0) {
+                this.currentVelocityX = Math.min(velocityX + deceleration * delta / 1000, 0);
+            }
         }
+
+        if (this.keys.get('up')!.isDown) {
+            this.currentVelocityY = Math.max(this.currentVelocityY - acceleration * delta / 1000, -velocityMax);
+        } else if (this.keys.get('down')!.isDown) {
+            this.currentVelocityY = Math.min(this.currentVelocityY + acceleration * delta / 1000, velocityMax);
+        } else {
+            if (velocityY > 0) {
+                this.currentVelocityY = Math.max(velocityY - deceleration * delta / 1000, 0);
+            } else if (velocityY < 0) {
+                this.currentVelocityY = Math.min(velocityY + deceleration * delta / 1000, 0);
+            }
+        }
+        const dampening = 0.95;
+        this.currentVelocityX *= dampening;
+        this.currentVelocityY *= dampening;
+
+        this.playerBody.setVelocityX(this.currentVelocityX);
+        this.playerBody.setVelocityY(this.currentVelocityY);
     }
 
     shoot() {
-        const mouse = this.scene.input.activePointer;
-        const angle = Phaser.Math.Angle.Between(this.x, this.y, mouse.x, mouse.y);;
-        const bullet = new Bullet(this.scene, this.x, this.y, 'bullet', angle, 50);
-        this.bulletsArray.push(bullet);
-        bullet.create();
+        if(!this.weapon) {
+            throw new Error('Weapon not found');
+        }
+        this.bulletsArray.push(this.weapon.shoot());
     }
 
     updateBullets(time: number, delta: number) {
         this.bulletsArray.forEach((bullet) => {
             bullet.update(time, delta);
         });
+    }
+
+    updateWeapon(time: number, delta: number) {
+        if(!this.weapon) {
+            throw new Error('Weapon not found');
+        }
+        this.weapon.update(time, delta);
+        this.weapon.setPosition(this.x+5, this.y);
     }
 
     public lookAtMouse() {

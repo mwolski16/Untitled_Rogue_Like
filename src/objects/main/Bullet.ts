@@ -1,14 +1,16 @@
-import { CustomGameObject } from "../core/Core";
+import { CustomGameObject } from "../../core/Core";
+import BulletConfig from "./BulletConfig";
 
 export default class Bullet extends CustomGameObject {
 
     speed: number = 0;
     direction: number = 0;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: string, direction: number, speed: number) {
-        super(scene, x, y, texture);
-        this.speed = speed;
-        this.direction = direction;
+    constructor(bulletConfig: BulletConfig) {
+        super(bulletConfig.scene, bulletConfig.x, bulletConfig.y, bulletConfig.texture);
+        this.speed = bulletConfig.speed;
+        this.direction = bulletConfig.direction;
+        this.create();
     }
 
     public preload(): void {
