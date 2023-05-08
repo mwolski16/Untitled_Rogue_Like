@@ -1,10 +1,14 @@
 import { CustomGameObject } from "../core/Core";
 import { KeyBindings } from "../util/KeyBindings";
+import { MovementComponent } from "./components/MovementComponent";
+import { MovementComponentConfig } from "./components/MovementComponentConfig";
 import Bullet from "./main/Bullet";
 import Weapon from "./main/Weapon";
 import WeaponConfig from "./main/WeaponConfig";
 
 export default class Player extends CustomGameObject {
+
+    movementComponent!: MovementComponent;
 
     keyboard = this.scene.input.keyboard;
     playerBody!: Phaser.Physics.Arcade.Body;
@@ -34,6 +38,15 @@ export default class Player extends CustomGameObject {
         this.scene.add.existing(this);
         this.setCollideWorldBounds(true);
         this.initialize();
+        const movementComponentConfig = new MovementComponentConfig()
+                                            .withAcceleration(this.ACCELERATION)
+                                            .withDeceleration(this.DECELERATION)
+                                            .withVelocityMax(500)
+                                            .withDampening(0.85)
+                                            .build();
+
+        this.movementComponent = new MovementComponent(this, movementComponentConfig);
+
         const testWeaponConfig = new WeaponConfig()
                                 .withScene(this.scene)
                                 .withPosition(this.x, this.y)
@@ -100,54 +113,27 @@ export default class Player extends CustomGameObject {
         }
     }
 
-    movePlayer(delta: number) {
-        const acceleration = this.ACCELERATION;
-        const deceleration = this.DECELERATION;
-        
-        const velocityX = this.playerBody.velocity.x;
-        const velocityY = this.playerBody.velocity.y;
-        const velocityMax = 1500;
-
-        if (Math.abs(this.playerBody.velocity.x) > velocityMax) {
-            this.playerBody.velocity.x = Math.sign(this.playerBody.velocity.x) * velocityMax;
-        }
-
-        if (Math.abs(this.playerBody.velocity.y) > velocityMax) {
-            this.playerBody.velocity.y = Math.sign(this.playerBody.velocity.y) * velocityMax;
-        }
-
+    movePlayer(delta: number): void {
+       
         if (this.keys.get('left')!.isDown) {
-            this.currentVelocityX = Math.max(this.currentVelocityX - acceleration * delta / 1000, -velocityMax);
+            this.movementComponent.moveLeft(delta);
         } else if (this.keys.get('right')!.isDown) {
-            this.currentVelocityX = Math.min(this.currentVelocityX + acceleration * delta / 1000, velocityMax);
+            this.movementComponent.moveRight(delta);
         } else {
-            if (velocityX > 0) {
-                this.currentVelocityX = Math.max(velocityX - deceleration * delta / 1000, 0);
-            } else if (velocityX < 0) {
-                this.currentVelocityX = Math.min(velocityX + deceleration * delta / 1000, 0);
-            }
+            this.movementComponent.stopX(delta);
         }
 
         if (this.keys.get('up')!.isDown) {
-            this.currentVelocityY = Math.max(this.currentVelocityY - acceleration * delta / 1000, -velocityMax);
+            this.movementComponent.moveUp(delta);
         } else if (this.keys.get('down')!.isDown) {
-            this.currentVelocityY = Math.min(this.currentVelocityY + acceleration * delta / 1000, velocityMax);
+            this.movementComponent.moveDown(delta);
         } else {
-            if (velocityY > 0) {
-                this.currentVelocityY = Math.max(velocityY - deceleration * delta / 1000, 0);
-            } else if (velocityY < 0) {
-                this.currentVelocityY = Math.min(velocityY + deceleration * delta / 1000, 0);
-            }
+            this.movementComponent.stopY();
         }
-        const dampening = 0.95;
-        this.currentVelocityX *= dampening;
-        this.currentVelocityY *= dampening;
 
-        this.playerBody.setVelocityX(this.currentVelocityX);
-        this.playerBody.setVelocityY(this.currentVelocityY);
     }
 
-    shoot() {
+    shoot(): void {
         if(!this.weapon) {
             throw new Error('Weapon not found');
         }
